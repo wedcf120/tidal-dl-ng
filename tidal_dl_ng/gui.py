@@ -695,6 +695,13 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         # If the clicked item is part of a multi-selection, apply action to all selected items
         if len(selected_items) > 1 and item in selected_items:
             # Multi-selection Actions
+            failed_items = [i for i in selected_items if i.text(0) == QueueDownloadStatus.Failed]
+            if failed_items:
+                menu.addAction(
+                    f"🔄 Retry {len(failed_items)} failed items",
+                    lambda: self.on_queue_download_retry_items(failed_items),
+                )
+
             menu.addAction(
                 f"🗑️ Remove {len(selected_items)} items", lambda: self.on_queue_download_remove_items(selected_items)
             )
@@ -703,6 +710,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             status = item.text(0)
             if status == QueueDownloadStatus.Downloading:
                 menu.addAction("⏹️ Stop / Remove from Queue", lambda: self.on_queue_download_remove_items([item]))
+            elif status == QueueDownloadStatus.Failed:
+                menu.addAction("🔄 Retry Download", lambda: self.on_queue_download_retry_items([item]))
+                menu.addAction("🗑️ Remove from Queue", lambda: self.on_queue_download_remove_items([item]))
             else:
                 menu.addAction("🗑️ Remove from Queue", lambda: self.on_queue_download_remove_items([item]))
 
@@ -2129,6 +2139,17 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             logger_gui.error("Please select an item from the queue first.")
         else:
             self.on_queue_download_remove_items(items)
+
+    def on_queue_download_retry_items(self, items: list[QtWidgets.QTreeWidgetItem]) -> None:
+        """Retry selected downloads by resetting their status to Waiting.
+
+        Args:
+            items (list[QTreeWidgetItem]): List of items to retry.
+        """
+        for item in items:
+            # Only retry failed items
+            if item.text(0) == QueueDownloadStatus.Failed:
+                item.setText(0, QueueDownloadStatus.Waiting)
 
     def on_queue_download_remove_items(self, items: list[QtWidgets.QTreeWidgetItem]) -> None:
         """Remove multiple items from the download queue.
